@@ -44,17 +44,20 @@ void readSensors() {
       println("in:", inputString);
       String [] inputStringArr = split(inputString, ',');
 
-     if (inputStringArr.length == 6) {
-        // convert raw readings to G
-        RwAcc[0] = float(trim(inputStringArr[0]));
-        RwAcc[1] = float(trim(inputStringArr[1]));
-        RwAcc[2] = float(trim(inputStringArr[2]));
+     if (inputStringArr.length == 3) {
+         RwEst[0] = float(trim(inputStringArr[0]));
+         RwEst[1] = float(trim(inputStringArr[1]));
+         RwEst[2] = float(trim(inputStringArr[2]));
+        //// convert raw readings to G
+        //RwAcc[0] = float(trim(inputStringArr[0]));
+        //RwAcc[1] = float(trim(inputStringArr[1]));
+        //RwAcc[2] = float(trim(inputStringArr[2]));
         
-        // convert raw readings to degrees/sec
-        Gyro[0] = float(trim(inputStringArr[3]));
-        Gyro[1] = float(trim(inputStringArr[4]));
-        Gyro[2] = float(trim(inputStringArr[5]));
-        println("out:", RwAcc[0], ",", RwAcc[1], ",", RwAcc[2], ",", Gyro[0], ",", Gyro[1], ",",Gyro[2]);
+        //// convert raw readings to degrees/sec
+        //Gyro[0] = float(trim(inputStringArr[3]));
+        //Gyro[1] = float(trim(inputStringArr[4]));
+        //Gyro[2] = float(trim(inputStringArr[5]));
+        //println("out:", RwAcc[0], ",", RwAcc[1], ",", RwAcc[2], ",", Gyro[0], ",", Gyro[1], ",",Gyro[2]);
      }
       
     }
@@ -148,54 +151,56 @@ void getInclination() {
   
   
   readSensors();
-  normalize3DVec(RwAcc);
+  //normalize3DVec(RwAcc);
   
   currentTime = millis();
   interval = currentTime - lastTime;
   lastTime = currentTime;
   
-  if (firstSample || Float.isNaN(RwEst[0])) { // the NaN check is used to wait for good data from the Arduino
-    for(w=0;w<=2;w++) {
-      RwEst[w] = RwAcc[w];    //initialize with accelerometer readings
-    }
-  }
-  else{
-    //evaluate RwGyro vector
-    if(abs(RwEst[2]) < 0.1) {
-      //Rz is too small and because it is used as reference for computing Axz, Ayz it's error fluctuations will amplify leading to bad results
-      //in this case skip the gyro data and just use previous estimate
-      for(w=0;w<=2;w++) {
-        RwGyro[w] = RwEst[w];
-      }
-    }
-    else {
-      //get angles between projection of R on ZX/ZY plane and Z axis, based on last RwEst
-      for(w=0;w<=1;w++){
-        tmpf = Gyro[w];                        //get current gyro rate in deg/s
-        tmpf *= interval / 1000.0f;                     //get angle change in deg
-        Awz[w] = atan2(RwEst[w],RwEst[2]) * 180 / PI;   //get angle and convert to degrees 
-        Awz[w] += tmpf;             //get updated angle according to gyro movement
-      }
+  //if (firstSample || Float.isNaN(RwEst[0])) { // the NaN check is used to wait for good data from the Arduino
+  //  for(w=0;w<=2;w++) {
+  //    RwEst[w] = RwAcc[w];    //initialize with accelerometer readings
+  //  }
+  //}
+  //else{
+  //  //evaluate RwGyro vector
+  //  if(abs(RwEst[2]) < 0.1) {
+  //    //Rz is too small and because it is used as reference for computing Axz, Ayz it's error fluctuations will amplify leading to bad results
+  //    //in this case skip the gyro data and just use previous estimate
+  //    for(w=0;w<=2;w++) {
+  //      RwGyro[w] = RwEst[w];
+  //    }
+  //  }
+  //  else {
+  //    //get angles between projection of R on ZX/ZY plane and Z axis, based on last RwEst
+  //    for(w=0;w<=1;w++){
+  //      tmpf = Gyro[w];                        //get current gyro rate in deg/s
+  //      tmpf *= interval / 1000.0f;                     //get angle change in deg
+  //      Awz[w] = atan2(RwEst[w],RwEst[2]) * 180 / PI;   //get angle and convert to degrees 
+  //      Awz[w] += tmpf;             //get updated angle according to gyro movement
+  //    }
       
-      //estimate sign of RzGyro by looking in what qudrant the angle Axz is, 
-      //RzGyro is pozitive if  Axz in range -90 ..90 => cos(Awz) >= 0
-      signRzGyro = ( cos(Awz[0] * PI / 180) >=0 ) ? 1 : -1;
+  //    //estimate sign of RzGyro by looking in what qudrant the angle Axz is, 
+  //    //RzGyro is pozitive if  Axz in range -90 ..90 => cos(Awz) >= 0
+  //    signRzGyro = ( cos(Awz[0] * PI / 180) >=0 ) ? 1 : -1;
       
-      //reverse calculation of RwGyro from Awz angles, for formulas deductions see  http://starlino.com/imu_guide.html
-      for(w=0;w<=1;w++){
-        RwGyro[0] = sin(Awz[0] * PI / 180);
-        RwGyro[0] /= sqrt( 1 + squared(cos(Awz[0] * PI / 180)) * squared(tan(Awz[1] * PI / 180)) );
-        RwGyro[1] = sin(Awz[1] * PI / 180);
-        RwGyro[1] /= sqrt( 1 + squared(cos(Awz[1] * PI / 180)) * squared(tan(Awz[0] * PI / 180)) );        
-      }
-      RwGyro[2] = signRzGyro * sqrt(1 - squared(RwGyro[0]) - squared(RwGyro[1]));
-    }
+  //    //reverse calculation of RwGyro from Awz angles, for formulas deductions see  http://starlino.com/imu_guide.html
+  //    for(w=0;w<=1;w++){
+  //      RwGyro[0] = sin(Awz[0] * PI / 180);
+  //      RwGyro[0] /= sqrt( 1 + squared(cos(Awz[0] * PI / 180)) * squared(tan(Awz[1] * PI / 180)) );
+  //      RwGyro[1] = sin(Awz[1] * PI / 180);
+  //      RwGyro[1] /= sqrt( 1 + squared(cos(Awz[1] * PI / 180)) * squared(tan(Awz[0] * PI / 180)) );        
+  //    }
+  //    RwGyro[2] = signRzGyro * sqrt(1 - squared(RwGyro[0]) - squared(RwGyro[1]));
+  //  }
     
-    //combine Accelerometer and gyro readings
-    for(w=0;w<=2;w++) RwEst[w] = (RwAcc[w] + wGyro * RwGyro[w]) / (1 + wGyro);
+  //  //combine Accelerometer and gyro readings
+  //  for(w=0;w<=2;w++) RwEst[w] = (RwAcc[w] + wGyro * RwGyro[w]) / (1 + wGyro);
 
-    normalize3DVec(RwEst);
-  }
+  //  normalize3DVec(RwEst);
+  //}
+  
+  normalize3DVec(RwEst);
   
   firstSample = false;
 }
@@ -210,11 +215,11 @@ void draw() {
   textFont(font, 20);
   //float temp_decoded = 35.0 + ((float) (temp + 13200)) / 280;
   //text("temp:\n" + temp_decoded + " C", 350, 250);
-  text("RwAcc (G):\n" + RwAcc[0] + "\n" + RwAcc[1] + "\n" + RwAcc[2] + "\ninterval: " + interval, 20, 50);
-  text("Gyro (°/s):\n" + Gyro[0] + "\n" + Gyro[1] + "\n" + Gyro[2], 220, 50);
-  text("Awz (°):\n" + Awz[0] + "\n" + Awz[1], 420, 50);
-  text("RwGyro (°/s):\n" + RwGyro[0] + "\n" + RwGyro[1] + "\n" + RwGyro[2], 20, 180);
-  text("RwEst :\n" + RwEst[0] + "\n" + RwEst[1] + "\n" + RwEst[2], 220, 180);
+  //text("RwAcc (G):\n" + RwAcc[0] + "\n" + RwAcc[1] + "\n" + RwAcc[2] + "\ninterval: " + interval, 20, 50);
+  //text("Gyro (°/s):\n" + Gyro[0] + "\n" + Gyro[1] + "\n" + Gyro[2], 220, 50);
+  //text("Awz (°):\n" + Awz[0] + "\n" + Awz[1], 420, 50);
+  //text("RwGyro (°/s):\n" + RwGyro[0] + "\n" + RwGyro[1] + "\n" + RwGyro[2], 20, 180);
+  //text("RwEst :\n" + RwEst[0] + "\n" + RwEst[1] + "\n" + RwEst[2], 220, 180);
   
   // display axes
   pushMatrix();

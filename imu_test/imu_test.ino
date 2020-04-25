@@ -13,13 +13,14 @@ int status;
 
 float ax_calib, ay_calib, az_calib;
 float gx_calib, gy_calib, gz_calib;
+float mx_calib, my_calib, mz_calib;
 
-char str[512]; 
+char str[512];
 
 //#define EULER_DATA
-#define RAW_DATA
+//#define RAW_DATA
 //#define PROCESSING
-//#define SERIAL_PLOTER
+#define SERIAL_PLOTTER
 
 
 void setup() {
@@ -32,40 +33,27 @@ void setup() {
   Wire.write(byte(0x00));
   Wire.endTransmission();
   delay(100);
-  
-  //Set up Gyro
+
+  // Set up Gyro
   Wire.beginTransmission(gyro_i2c);
   Wire.write(byte(0x03)); // Cycle time register
   Wire.write(byte(0x01)); // Convert time
   Wire.endTransmission();
   delay(100);
 
-  //Set up Accelerometer
+  // Set up Accelerometer
   Wire.beginTransmission(accelerometer_i2c);
   Wire.write(byte(0x2d)); // Power_Control register
   Wire.write(byte(0x08)); // Link and measure mode
   Wire.endTransmission();
   delay(100);
 
-  //Accel offset calibration
-
-//Z-axis
+  // Accel offset calibration - Z-axis
   Wire.beginTransmission(accelerometer_i2c);
   Wire.write(0x20); // Z-axis offset register
   Wire.write(13);
   Wire.endTransmission();
-  delay(10);
-
-//  Wire.beginTransmission(accelerometer_i2c);
-//  Wire.write(byte(0x31)); // Data_Format register
-//  Wire.write(byte(0x08)); // Full_Resolution; and Range +-2g
-//  Wire.endTransmission();
-//  delay(100);
-//  Wire.beginTransmission(accelerometer_i2c);
-//  Wire.write(byte(0x38)); // FIFO_Control_Format register
-//  Wire.write(byte(0x00)); // Bypass mode
-//  Wire.endTransmission();
-//  delay(100);
+  delay(100);
 
   calibrate();
 }
@@ -73,7 +61,8 @@ void setup() {
 float convertGyroADCStepsToDegreesPerSecond (int steps) {
   // Range: 0.35 to 2.35 Volts. i.e. zero at 1.35V (2213 steps)
   // Sensitivity: 1 step = 1.22 deg/s
-  return (steps - 2213)*1.22;
+
+  return (steps - 2213) * 1.22;
 }
 
 float convertAccelerometerADCStepsToMetersPerSecondSquared (int steps) {
@@ -82,12 +71,28 @@ float convertAccelerometerADCStepsToMetersPerSecondSquared (int steps) {
   // Then times g by 9.80665 to get m/s/s
   // Above combined, times by 0.0383072265625
 
-  return steps*0.0383072;
+  return steps * 0.0383072;
+}
+
+float convertCompassADCStepsToMilliGaussPerSecond (int steps) {
+  return (steps - 2047) * 2.6875;
+}
+
+float convertTemperatureADCStepsToDegreesCelsius (int steps) {
+  //0.1521 degC per step
+
+  return steps * 0.1521;
+}
+
+float convertMilliGaussToMicroTesla (float mG) {
+  // 1 mG = 0.1 uT
+  return mG / 0.1;
 }
 
 float convertDegreesToRadians (float deg) {
   // pi/180 = 0.0174533
-  return deg*0.0174533;
+
+  return deg * 0.0174533;
 }
 
 void readCompass(int &x, int &y, int &z)
@@ -105,10 +110,10 @@ void readCompass(int &x, int &y, int &z)
     int d4 = Wire.read(); //Y LSB
     int d5 = Wire.read(); //Z MSB
     int d6 = Wire.read(); //Z LSB
-    
-    x = ((d1 & 0x80) != 0) ? (((~0)>>16)<<16) | ((d1<<8)+d2): (d1<<8)+d2;
-    y = ((d3 & 0x80) != 0) ? (((~0)>>16)<<16) | ((d3<<8)+d4): (d3<<8)+d4;
-    z = ((d5 & 0x80) != 0) ? (((~0)>>16)<<16) | ((d5<<8)+d6): (d5<<8)+d6;
+
+    x = ((d1 & 0x80) != 0) ? (((~0) >> 16) << 16) | ((d1 << 8) + d2) : (d1 << 8) + d2;
+    y = ((d3 & 0x80) != 0) ? (((~0) >> 16) << 16) | ((d3 << 8) + d4) : (d3 << 8) + d4;
+    z = ((d5 & 0x80) != 0) ? (((~0) >> 16) << 16) | ((d5 << 8) + d6) : (d5 << 8) + d6;
   }
 }
 
@@ -127,13 +132,10 @@ void readAccel(int &x, int &y, int &z)
     int d4 = Wire.read(); //Y LSB
     int d5 = Wire.read(); //Z MSB
     int d6 = Wire.read(); //Z LSB
-    
-//    x = ((d1 & 0x80) != 0) ? (((~0)>>16)<<16) | ((d1<<8)+d2): (d1<<8)+d2;
-//    y = ((d3 & 0x80) != 0) ? (((~0)>>16)<<16) | ((d3<<8)+d4): (d3<<8)+d4;
-//    z = ((d5 & 0x80) != 0) ? (((~0)>>16)<<16) | ((d5<<8)+d6): (d5<<8)+d6;
-  x = ( d1 | d2 << 8); // X-axis value
-  y = ( d3 | d4 << 8); // Y-axis value
-  z = ( d5 | d6 << 8); // Z-axis value
+
+    x = ( d1 | d2 << 8); // X-axis value
+    y = ( d3 | d4 << 8); // Y-axis value
+    z = ( d5 | d6 << 8); // Z-axis value
   }
 }
 
@@ -149,7 +151,7 @@ int readGyroChannel (int index)
   Wire.write(byte(high));
   Wire.write(byte(low + 0x0c));
   Wire.endTransmission();
-  delay(20); 
+  delay(20);
 
   Wire.beginTransmission(gyro_i2c);
   Wire.write(byte(0x00));
@@ -159,9 +161,9 @@ int readGyroChannel (int index)
   if (2 <= Wire.available()) {
     d1 = Wire.read();
     d2 = Wire.read();
-    return (d1 & 0x0f)*256+d2;
+    return (d1 & 0x0f) * 256 + d2;
   }
-  
+
   return 0;
 }
 
@@ -180,14 +182,15 @@ void readGyro(int &x, int &x45, int &y, int &y45, int &z, int &z45, int &idgTemp
 void calibrate() {
   calibrateAccelerometer();
   calibrateGyro();
+  calibrateCompass();
 }
 
 void calibrateAccelerometer() {
   delay(500);
-  
+
   int accelX, accelY, accelZ;
   float ax1, ay1, az1, ax2, ay2, az2;
-  
+
   // Take first reading
   readAccel(accelX, accelY, accelZ);
   ax1 = convertAccelerometerADCStepsToMetersPerSecondSquared(accelX);
@@ -202,17 +205,17 @@ void calibrateAccelerometer() {
   az2 = convertAccelerometerADCStepsToMetersPerSecondSquared(accelZ);
 
   // Average the difference between measurements and expected acceleration
-  ax_calib = (-1*ax1 + -1*ax2)/2;
-  ay_calib = (-1*ay1 + -1*ay2)/2;
-  az_calib = ((-9.80665-az1) + (-9.80665-az2))/2; // z acceleration is 9.80665 m/s^2
+  ax_calib = (-1 * ax1 + -1 * ax2) / 2;
+  ay_calib = (-1 * ay1 + -1 * ay2) / 2;
+  az_calib = ((-9.80665 - az1) + (-9.80665 - az2)) / 2; // z acceleration is 9.80665 m/s^2
 }
 
 void calibrateGyro() {
   delay(500);
-  
+
   int gyroX, gyroX45, gyroY, gyroY45, gyroZ, gyroZ45, gyroIgTemp, gyroIszTemp;
   float gx1, gy1, gz1, gx2, gy2, gz2;
-  
+
   // Take first reading
   readGyro(gyroX, gyroX45, gyroY, gyroY45, gyroZ, gyroZ45, gyroIgTemp, gyroIszTemp);
   gx1 = convertDegreesToRadians(convertGyroADCStepsToDegreesPerSecond(gyroX));
@@ -227,52 +230,55 @@ void calibrateGyro() {
   gz2 = convertDegreesToRadians(convertGyroADCStepsToDegreesPerSecond(gyroZ));
 
   // Average the difference between measurements and expected acceleration
-  gx_calib = (-1*gx1 + -1*gx2)/2;
-  gy_calib = (-1*gy1 + -1*gy2)/2;
-  gz_calib = (-1*gz1 + -1*gz2)/2;
+  gx_calib = (-1 * gx1 + -1 * gx2) / 2;
+  gy_calib = (-1 * gy1 + -1 * gy2) / 2;
+  gz_calib = (-1 * gz1 + -1 * gz2) / 2;
+}
+
+void calibrateCompass() {
+  mx_calib = 0;
+  my_calib = 0;
+  mz_calib = 0;
 }
 
 void loop() {
   int compassX, compassY, compassZ;
   readCompass(compassX, compassY, compassZ);
-//  Serial.println(String(compassX) + ", " + String(compassY) + ", " + String(compassZ));
 
   int gyroX, gyroX45, gyroY, gyroY45, gyroZ, gyroZ45, gyroIgTemp, gyroIszTemp;
   readGyro(gyroX, gyroX45, gyroY, gyroY45, gyroZ, gyroZ45, gyroIgTemp, gyroIszTemp);
-//  Serial.println(String(gyroX) + ", " + String(gyroX45) + ", " + String(gyroY)+ ", " + String(gyroY45)+ ", " + String(gyroZ)+ ", " + String(gyroZ45)+ ", " + String(gyroIgTemp)+ ", " + String(gyroIszTemp));
-//  Serial.println(String(gyroX) + ", " + ", " + String(gyroY)+ ", " + ", " + String(gyroZ));
 
   int accelX, accelY, accelZ;
   readAccel(accelX, accelY, accelZ);
-//  Serial.println(String(accelX) + ", " + String(accelY) + ", " + String(accelZ));
 
   ax = convertAccelerometerADCStepsToMetersPerSecondSquared(accelX) + ax_calib;
   ay = convertAccelerometerADCStepsToMetersPerSecondSquared(accelY) + ay_calib;
   az = convertAccelerometerADCStepsToMetersPerSecondSquared(accelZ) + az_calib;
-  
+
   gx = convertDegreesToRadians(convertGyroADCStepsToDegreesPerSecond(gyroX)) + gx_calib;
   gy = convertDegreesToRadians(convertGyroADCStepsToDegreesPerSecond(gyroY) + gy_calib);
   gz = convertDegreesToRadians(convertGyroADCStepsToDegreesPerSecond(gyroZ)) + gz_calib;
 
-  mx = (compassX-2047)*2.6875*0.1; // 2.6875‬ milligauss per step, 1 milligauss = 0.1 microtesla
-  my = (compassY-2047)*2.6875*0.1; // 2.6875‬ milligauss per step, 1 milligauss = 0.1 microtesla
-  mz = (compassZ-2047)*2.6875*0.1; // 2.6875‬ milligauss per step, 1 milligauss = 0.1 microtesla
-  temp = gyroIgTemp*0.1521; //0.1521 degC per step
-  
+  mx = convertMilliGaussToMicroTesla(convertCompassADCStepsToMilliGaussPerSecond(compassX)) + mx_calib;
+  my = convertMilliGaussToMicroTesla(convertCompassADCStepsToMilliGaussPerSecond(compassY)) + my_calib;
+  mz = convertMilliGaussToMicroTesla(convertCompassADCStepsToMilliGaussPerSecond(compassZ)) + mz_calib;
+
+  temp = convertTemperatureADCStepsToDegreesCelsius(gyroIgTemp);
+
 #ifdef RAW_DATA
-//  Serial.println("From last Update:" + String(deltat));
-//  Serial.println("GYRO:x" + String(gx) + "y:" + String(gy)+ "z:" + String(gz));
-//  Serial.println("ACC:x" + String(ax) + "y:" + String(ay)+ "z:" + String(az));
-//  Serial.println("MAG:x" + String(mx) + "y:" + String(my)+ "z:" + String(mz));
-//  Serial.println("TEMP:" + String(temp));
-//  Serial.println(String(gx) + ", " + String(gy)+ ", " + String(gz) + ", " + String(ax) + ", " + String(ay) + ", " + String(az) + ", " + String(mx) + ", " + String(my) + ", " + String(mz));
-Serial.println(String(ax) + "," + String(ay)+ "," + String(az) + "," + String(gx) + "," + String(gy)+ "," + String(gz));
-delay(10);
-  
+  //  Serial.println("From last Update:" + String(deltat));
+  //  Serial.println("GYRO:x" + String(gx) + "y:" + String(gy)+ "z:" + String(gz));
+  //  Serial.println("ACC:x" + String(ax) + "y:" + String(ay)+ "z:" + String(az));
+  //  Serial.println("MAG:x" + String(mx) + "y:" + String(my)+ "z:" + String(mz));
+  //  Serial.println("TEMP:" + String(temp));
+  //  Serial.println(String(gx) + ", " + String(gy)+ ", " + String(gz) + ", " + String(ax) + ", " + String(ay) + ", " + String(az) + ", " + String(mx) + ", " + String(my) + ", " + String(mz));
+  Serial.println(String(ax) + "," + String(ay) + "," + String(az) + "," + String(gx) + "," + String(gy) + "," + String(gz) + "," + String(mx) + "," + String(my) + "," + String(mz));
+  delay(10);
+
 #endif
 
   deltat = fusion.deltatUpdate();
-//  fusion.MahonyUpdate(gx, gy, gz, ax, ay, az, mx, my, mz, deltat);  //mahony is suggested if there isn't the mag
+  //  fusion.MahonyUpdate(gx, gy, gz, ax, ay, az, mx, my, mz, deltat);  //mahony is suggested if there isn't the mag
   fusion.MadgwickUpdate(gx, gy, gz, ax, ay, az, mx, my, mz, deltat);  //else use the magwick
 
   roll = fusion.getRoll();
@@ -280,17 +286,17 @@ delay(10);
   yaw = fusion.getYaw();
 
 #ifdef EULER_DATA
-  Serial.println("Pitch:" + String(pitch) + "Roll:" + String(roll)+ "Yaw:" + String(yaw));
+  Serial.println("Pitch:" + String(pitch) + "Roll:" + String(roll) + "Yaw:" + String(yaw));
 #endif
 
 #ifdef PROCESSING
   roll = fusion.getRollRadians();
   pitch = fusion.getPitchRadians();
   yaw = fusion.getYawRadians();
-  Serial.println(String(pitch) + ":" + String(roll)+ ":" + String(yaw));
+  Serial.println(String(pitch) + "," + String(roll) + "," + String(yaw));
 #endif
 
-#ifdef SERIAL_PLOTER
-  Serial.println(String(pitch) + " " + String(roll)+ " " + String(yaw));
+#ifdef SERIAL_PLOTTER
+  Serial.println(String(pitch) + ", " + String(roll) + ", " + String(yaw));
 #endif
 }
