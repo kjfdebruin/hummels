@@ -272,7 +272,8 @@ void loop() {
   //  Serial.println("MAG:x" + String(mx) + "y:" + String(my)+ "z:" + String(mz));
   //  Serial.println("TEMP:" + String(temp));
   //  Serial.println(String(gx) + ", " + String(gy)+ ", " + String(gz) + ", " + String(ax) + ", " + String(ay) + ", " + String(az) + ", " + String(mx) + ", " + String(my) + ", " + String(mz));
-  Serial.println(String(ax) + "," + String(ay) + "," + String(az) + "," + String(gx) + "," + String(gy) + "," + String(gz) + "," + String(mx) + "," + String(my) + "," + String(mz));
+//  Serial.println(String(ax) + "," + String(ay) + "," + String(az) + "," + String(gx) + "," + String(gy) + "," + String(gz) + "," + String(mx) + "," + String(my) + "," + String(mz));
+  Serial.println(String(ax) + "," + String(ay) + "," + String(az) + "," + String(gx) + "," + String(gy) + "," + String(gz));
   delay(10);
 
 #endif
